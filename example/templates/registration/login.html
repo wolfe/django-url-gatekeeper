@@ -1,0 +1,24 @@
+{% load i18n %}
+
+{% block content %}
+    {% if not user.is_anonymous %}
+        <p>
+            {% trans "You are currently logged in." %}
+            <a href="{% url logout %}">{% trans "Log out" %}</a>.
+        </p>
+
+    {% else %}
+        {% if not locked %}
+            <div class="page-header">
+                <h1>{% trans 'Login' %}</h1>
+            </div>
+            <form action="" method="post">
+                {% csrf_token %}
+                {{ form }}
+                <div class="form-actions">
+                    <button type="submit">{% trans 'Login' %}</button>
+                </div>
+            </form>
+       {% endif %}
+    {% endif %}
+{% endblock %}
