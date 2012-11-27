@@ -1,15 +1,11 @@
-from django.test import TestCase
 import middleware as middle
 from django.http import (HttpResponseForbidden, HttpRequest,
                          HttpResponseRedirect, HttpResponse)
 from . import add_token
 from django.contrib.auth.models import User, AnonymousUser
+from test_utils import SettingsTestCase
 
-class Mock(object):
-    """Used to supply settings.TOKEN_REQUIRED_URLS via mock settings object.
-    """
-
-class _TestCase(TestCase):
+class _TestCase(SettingsTestCase):
     def assertForbidden(self, response):
         assert(isinstance(response, HttpResponseForbidden))
         self.assertEquals(403, response.status_code)
@@ -21,17 +17,13 @@ class _TestCase(TestCase):
     def assertNone(self, response):
         assert(response == None)
 
-    def assertOK(self, response):
-        self.assertEquals(200, response.status_code)
-        self.assertEquals("OK", str(response.content))
-
 class TestLoginRequired(_TestCase):
     def setUp(self):
-        settings = Mock()
-        settings.LOGIN_EXEMPT_URLS = (r'/public/.*$',)
-        settings.LOGIN_URL = '/accounts/login/'
-        settings.LOGOUT_URL = '/accounts/logout/'
-        self.middle = middle.LoginRequiredMiddleware(_settings=settings)
+        self.settings_manager.set(
+            LOGIN_EXEMPT_URLS = (r'/public/.*$',),
+            LOGIN_URL = '/accounts/login/',
+            LOGOUT_URL = '/accounts/logout/')
+        self.middle = middle.LoginRequiredMiddleware()
         self.request = HttpRequest()
 
     def test_login_required(self):
@@ -41,7 +33,7 @@ class TestLoginRequired(_TestCase):
 
     def test_login_successful(self):
         self.request.path_info = "/public/foo"
-        self.request.user = User()
+        self.request.user = User(username="Joe")
         self.assertNone(self.middle.process_request(self.request))
 
     def test_login_not_required(self):
@@ -51,19 +43,20 @@ class TestLoginRequired(_TestCase):
 
 class TestRequirePermission(_TestCase):
     def setUp(self):
-        settings = Mock()
-        settings.RESTRICTED_URLS = (
-            (r'^/.*x.*/$', 'url_gatekeeper.x'),
-            (r'^/.*z.*/$', 'url_gatekeeper.z'),
-            (r'^/staff/*$', 'is_staff'),
-        )
-        settings.RESTRICTED_URLS_EXCEPTIONS = (
-            r'^/login/$',
-            r'^/logout/$',
-        )
-        self.middle = middle.RequirePermissionMiddleware(_settings=settings)
+        self.settings_manager.set(
+            RESTRICTED_URLS = (
+                (r'^/.*x.*/$', 'url_gatekeeper.x'),
+                (r'^/.*z.*/$', 'url_gatekeeper.z'),
+                (r'^/staff/*$', 'is_staff'),
+                (r'^/login/$', None),
+                (r'^/logout/$', None),
+            ),
+            RESTRICTED_URLS_EXCEPTIONS = (
+                r'^.*public.*$',
+            ))
+        self.middle = middle.RequirePermissionMiddleware()
         self.request = HttpRequest()
-        user = User()
+        user = User(username="Joe")
         user.save()
         self.request.user = user
 
@@ -76,7 +69,13 @@ class TestRequirePermission(_TestCase):
         def view(request): return HttpResponse("OK")
         self.request.path_info = "/x/"
         self.request.user.has_perm = lambda x: x == 'url_gatekeeper.x'
-        self.assertOK(self.middle.process_view(self.request, view, [], {}))
+        self.assertNone(self.middle.process_view(self.request, view, [], {}))
+
+    def test_exceptions(self):
+        def view(request): return HttpResponse("OK")
+        self.request.path_info = "/x/public/y/"
+        self.request.user.has_perm = lambda x: False
+        self.assertNone(self.middle.process_view(self.request, view, [], {}))
 
     def test_view_restricted(self):
         def view(request): return HttpResponse("OK")
@@ -89,7 +88,7 @@ class TestRequirePermission(_TestCase):
         self.request.path_info = "/staff/"
         self.assertForbidden(self.middle.process_view(self.request, view, [], {}))
         self.request.user.is_staff = True
-        self.assertOK(self.middle.process_view(self.request, view, [], {}))
+        self.assertNone(self.middle.process_view(self.request, view, [], {}))
 
     def test_view_unlisted(self):
         def view(request): return HttpResponse("OK")
@@ -106,13 +105,14 @@ class TestRequirePermission(_TestCase):
         self.assertForbidden(self.middle.process_view(self.request, view, [], {}))
         self.request.user.has_perm = lambda x: x in ['url_gatekeeper.z',
                                                      'url_gatekeeper.x']#*#
-        self.assertOK(self.middle.process_view(self.request, view, [], {}))
+        self.assertNone(self.middle.process_view(self.request, view, [], {}))
 
 class TestTokenRequired(_TestCase):
     def setUp(self):
-        settings = Mock()
-        settings.TOKEN_REQUIRED_URLS = (r'/image/.*$', r'/img/.*')
-        self.middle = middle.TokenRequiredMiddleware(_settings=settings)
+        self.settings_manager.set(
+            TOKEN_REQUIRED_URLS = (r'/image/.*$', r'/img/.*')
+        )
+        self.middle = middle.TokenRequiredMiddleware()
         self.request = HttpRequest()
         self.request.path_info = "/image/23/"
 

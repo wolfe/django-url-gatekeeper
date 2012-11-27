@@ -6,7 +6,7 @@ def long_description(source):
 
 setup(
     name = "url_gatekeeper",
-    version = "0.1.1",
+    version = "0.1.2",
     author = "Sheepdog",
     author_email = "development@sheepdoginc.ca",
     description = ("Opt-out permission restrictions by URL patterns"),
