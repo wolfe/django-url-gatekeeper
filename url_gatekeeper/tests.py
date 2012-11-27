@@ -44,12 +44,12 @@ class TestLoginRequired(_TestCase):
 class TestRequirePermission(_TestCase):
     def setUp(self):
         self.settings_manager.set(
+            LOGIN_EXEMPT_URLS = (r'/public/$',
+                                 r'/login/$'),
             RESTRICTED_URLS = (
                 (r'^/.*x.*/$', 'url_gatekeeper.x'),
                 (r'^/.*z.*/$', 'url_gatekeeper.z'),
                 (r'^/staff/*$', 'is_staff'),
-                (r'^/login/$', None),
-                (r'^/logout/$', None),
             ),
             RESTRICTED_URLS_EXCEPTIONS = (
                 r'^.*public.*$',

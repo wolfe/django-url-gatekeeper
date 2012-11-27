@@ -33,7 +33,6 @@ class LoginRequiredMiddleware:
     """
     def __init__(self):
         self.exempt_urls = []
-        self.LOGOUT_URL = settings.LOGOUT_URL
         if hasattr(settings, 'LOGIN_EXEMPT_URLS'):
             self.exempt_urls += [re.compile(url) for url in settings.LOGIN_EXEMPT_URLS]
 
@@ -48,7 +47,7 @@ class LoginRequiredMiddleware:
         if (request.user.is_authenticated()
             or any(m.match(request.path_info) for m in self.exempt_urls)):
             return
-        elif request.path_info == self.LOGOUT_URL:
+        elif request.path_info == settings.LOGOUT_URL:
             return HttpResponseRedirect(self.login_url)
         else:
             return HttpResponseRedirect('%s?next=%s' % (settings.LOGIN_URL, request.path_info))
@@ -83,7 +82,8 @@ class RequirePermissionMiddleware(object):
         self.restricted = tuple([(re.compile(url[0]), url[1])
                                  for url in setting('RESTRICTED_URLS')])
         self.exceptions = tuple([re.compile(url)
-                                 for url in setting('RESTRICTED_URLS_EXCEPTIONS')])
+                                 for url in (setting('RESTRICTED_URLS_EXCEPTIONS')
+                                             + setting('LOGIN_EXEMPT_URLS'))])
 
     def process_view(self, request, view_func, view_args, view_kwargs):
         # An exception match should immediately return None

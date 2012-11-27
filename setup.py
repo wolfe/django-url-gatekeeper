@@ -12,8 +12,8 @@ setup(
     description = ("Opt-out permission restrictions by URL patterns"),
     license = "BSD",
     keywords = "permissions URL",
-    url = "https://github.com/SheepDogInc/django-versioning",
-    packages=find_packages(),
+    url = "https://github.com/SheepDogInc/django-url-gatekeeper",
+    packages=find_packages(exclude=["example"]),
     long_description=long_description("README.md"),
     include_package_data=True,
 )

@@ -65,17 +65,18 @@ LOGOUT_URL = '/logout/' # ADD ME
 
 LOGIN_EXEMPT_URLS = ( # ADD ME
     r'^/public/',
+    r'^/login/',
+    r'^/logout/',
 )
 TOKEN_REQUIRED_URLS = ( # ADD ME
     r'^/dbfile/', # Same as '^/dbfile/.*$'
 )
 RESTRICTED_URLS = ( # ADD ME
     (r'^/private/', 'is_staff'),
+    (r'^/admin/.*', 'is_admin'),
     (r'^/semiprivate/', 'can_view_semiprivate'),
 )
 RESTRICTED_URLS_EXCEPTIONS = ( # ADD ME
-    r'^/login/',
-    r'^/logout/',
 )
 
 
