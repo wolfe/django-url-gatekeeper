@@ -5,7 +5,7 @@ def long_description(source):
         return f.read()
 
 setup(
-    name = "url_gatekeeper",
+    name = "django-url-gatekeeper",
     version = "0.1.2",
     author = "Sheepdog",
     author_email = "development@sheepdoginc.ca",
