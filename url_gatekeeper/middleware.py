@@ -1,7 +1,11 @@
+import logging
+import re
+import urllib
+from django.core.exceptions import PermissionDenied
+from django.core.cache import caches
 from django.conf import settings
 from django.http import HttpResponseRedirect, HttpResponseForbidden
-import re
-from . import check_token
+
 
 def permissions_required_with_403(perms, request):
     """
@@ -20,6 +24,7 @@ def permissions_required_with_403(perms, request):
         if not _checkperm(request.user, perm):
             return HttpResponseForbidden("Requires permission %s" % perm)
     return None
+
 
 class LoginRequiredMiddleware:
     """
@@ -51,6 +56,7 @@ class LoginRequiredMiddleware:
             return HttpResponseRedirect(self.login_url)
         else:
             return HttpResponseRedirect('%s?next=%s' % (settings.LOGIN_URL, request.path_info))
+
 
 class RequirePermissionMiddleware(object):
     """
@@ -103,13 +109,35 @@ class RequirePermissionMiddleware(object):
                          "There is no permission setting in RESTRICTED_URLS."
                 % request.path_info)
 
+
+def check_token(token, url):
+    url2 = caches['shared'].get(token)
+    return (token and url == urllib.unquote(url2))
+
+
+log = logging.getLogger(__name__)
+COMPILED_TOKEN_REQUIRED_URLS = tuple(re.compile(url) for url in settings.TOKEN_REQUIRED_URLS)
+
+
 class TokenRequiredMiddleware(object):
-    def __init__(self):
-        patterns = settings.TOKEN_REQUIRED_URLS
-        self.token_required_urls = tuple([re.compile(url) for url in patterns])
     def process_request(self, request):
-        for m in self.token_required_urls:
-            if m.match(request.path_info):
+        path_info = request.path_info
+        for m in COMPILED_TOKEN_REQUIRED_URLS:
+            if m.match(path_info):
                 token = request.GET.get('url_token')
-                if not (check_token(token, request.path_info)):
-                    return HttpResponseForbidden("View cannot be bookmarked.")
+                if token is None:
+                    log.warning('Token required url %s submitted without a token.' % path_info)
+                    raise PermissionDenied(
+                        'View cannot be bookmarked. This page requires an access token, but none was found.')
+                log.debug('Checking token %s against url %s' % (token, path_info))
+                try:
+                    if not (check_token(token, path_info)):
+                        log.warning('Token required url %s submitted without mismatched token %s.' % (path_info, token))
+                        return PermissionDenied(
+                            "View cannot be bookmarked. This page requires an access token, but the access token doesn't match the url.")
+                except AttributeError:
+                    log.warning('Token required url %s submitted with stale token %s.' % (path_info, token))
+                    raise PermissionDenied(
+                        "View cannot be bookmarked. This page requires an access token, but the access token is stale.")
+                break
+
