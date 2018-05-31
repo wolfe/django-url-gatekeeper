@@ -1,10 +1,18 @@
-from django.core.cache import get_cache
+try:
+    from django.core.cache import caches
+
+    def get_cache(cache_name):
+        return caches[cache_name]
+except ImportError:
+    from django.core.cache import get_cache
 import random, string
 import urlparse, urllib
+
 
 def random_string(length=50, chars=None):
     chars = chars if chars else string.ascii_lowercase
     return ''.join(random.choice(chars) for x in range(length))
+
 
 def add_query_param(url, name, value):
     """
@@ -21,10 +29,12 @@ def add_query_param(url, name, value):
                               o.fragment)
     return o2.geturl()
 
+
 def add_token(url, expiry=10):
     token = random_string()
     get_cache('shared').set(token, url, expiry)
     return add_query_param(url, 'url_token', token)
+
 
 def check_token(token, url):
     url2 = get_cache('shared').get(token)
